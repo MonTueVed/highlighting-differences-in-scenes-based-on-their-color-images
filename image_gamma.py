@@ -4,6 +4,9 @@ import time
 import multiprocessing
 
 def process_zone(zone, color, color1, bright, zones, size1, size2):
+    """
+    Основная вычислительная часть, исполняемая параллельно.
+    """
     part = np.zeros((len(color), 3))
     a = [[0, 0, 0]]
     n = 0
@@ -16,23 +19,28 @@ def process_zone(zone, color, color1, bright, zones, size1, size2):
     part = part.reshape(size1*size2, 3)
     return part
 
+
 def chi(x, zone, zones):
+    """
+    Функция принадлежности пикселя к цветовой зоне с которой работаем сейчас.
+    """
     if np.allclose(x, zones[zone]):
         return 1
     else:
         return 0
 
 if __name__ == '__main__':
-    start = time.time()
+    start = time.time() #измеряем время работы кода
 
-    size1, size2 = 100, 100
+    size1, size2 = 100, 100 #задание размеров анализируемых изображений
 
-    img = cv2.imread('med.png')
+    img = cv2.imread('med.png') #чтение эталонного изображения
     img = img.reshape(-1, img.shape[-1])
 
-    img1 = cv2.imread('med2.png')
+    img1 = cv2.imread('med2.png') #чтение изображения на котором хотим выявить новые объекты
     img1 = img1.reshape(-1, img1.shape[-1])
 
+    #преобразование изображения к нормированному на яркость виду. норма евклидова.
     color = np.empty((0, 3))
     bright = []
     color1 = np.empty((0, 3))
@@ -59,21 +67,23 @@ if __name__ == '__main__':
 
     print('complete transformation')
 
+    #обнаружение зон постоянного цвета
     unique_rows = [color[0]]
     for row in color:
         if not any(np.allclose(row, unique_row) for unique_row in unique_rows):
             unique_rows.append(row)
-
+            
     zones = np.array(unique_rows)
     print(len(zones))
-
-    num_processes = 6
+    
+    num_processes = 6 #число параллельных вычислений
     pool = multiprocessing.Pool(processes=num_processes)
 
     results = []
     for zone in range(len(zones)):
         results.append(pool.apply_async(process_zone, args=(zone, color, color1, bright, zones, size1, size2)))
 
+    #создание проекции
     pvq = np.zeros((size1*size2, 3))
     counter = 1
 
@@ -97,8 +107,8 @@ if __name__ == '__main__':
     res = res.reshape(size1, size2, 3)
     pvq = pvq.reshape(size1, size2, 3)
     
-    cv2.imwrite('pvq.png', pvq)
-    cv2.imwrite('result.png', res)
+    cv2.imwrite('pvq.png', pvq) #запись проекции
+    cv2.imwrite('result.png', res) #запись результата (разности)
 
     end = time.time()
     print(end - start)
